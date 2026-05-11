@@ -140,4 +140,3 @@ Distributed under the MIT License. See `LICENSE` (or `server/package.json`) for 
 
 ---
 
-<p align="center">Built with ❤️ by the Hire Sphere Team</p>
