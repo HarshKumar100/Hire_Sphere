@@ -1,335 +1,143 @@
-# HireSphere
+# <img src="./logo.png" width="48" height="48" valign="middle"> Hire Sphere
 
-A comprehensive campus placement management system built with the MERN stack. HireSphere streamlines the entire recruitment process by connecting students, recruiters, and placement administrators on a unified platform with AI-powered features.
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![React](https://img.shields.io/badge/Frontend-React-61DAFB?logo=react)](https://reactjs.org/)
+[![Node.js](https://img.shields.io/badge/Backend-Node.js-339933?logo=node.js)](https://nodejs.org/)
+[![MongoDB](https://img.shields.io/badge/Database-MongoDB-47A248?logo=mongodb)](https://www.mongodb.com/)
+[![Gemini](https://img.shields.io/badge/AI-Google%20Gemini-blue?logo=google-gemini)](https://ai.google.dev/)
 
-## Features
+**Hire Sphere** is an advanced AI agent prototype designed to revolutionize the recruitment process. By leveraging Large Language Models (LLMs) and semantic matching, it assists HR teams in evaluating, scoring, and ranking candidates with unprecedented efficiency and transparency.
 
-### For Students
-- **Profile Management**: Complete academic profile with resume uploads to Firebase Storage
-- **Drive Discovery**: Browse and apply to eligible placement drives with real-time eligibility checking
-- **Application Tracking**: Monitor application status through the entire hiring pipeline
-- **Online Assessments**: Take MCQ and coding tests with a built-in code editor and auto-evaluation
-- **Video Interviews**: Join live video interviews with screen sharing capabilities
-- **AI Resume Suggestions**: Get AI-powered ATS compatibility analysis and improvement recommendations
-- **AI Test Review**: Receive personalized feedback on test performance with weak area identification
-- **Offer Management**: View and respond to placement offers with digital offer letters
+---
 
-### For Recruiters
-- **Company Profile**: Manage company information with logo uploads via Cloudinary
-- **Drive Management**: Create and publish placement drives with detailed job descriptions
-- **Custom Hiring Pipeline**: Configure multi-stage selection processes (screening, aptitude, technical, HR)
-- **Applicant Screening**: Review applications with bulk actions for shortlisting and rejection
-- **Test Designer**: Create MCQ and coding assessments with AI-powered question generation
-- **AI Resume Scoring**: Evaluate candidates with AI-generated match scores and skill analysis
-- **Interview Scheduling**: Schedule video interviews with integrated room management
-- **Offer Letters**: Generate and send digital offer letters to selected candidates
+## 🌟 Overview
 
-### For Administrators
-- **Dashboard Analytics**: View placement statistics and drive metrics
-- **User Management**: Manage student and recruiter accounts with verification workflows
-- **Drive Approval**: Review and approve placement drives before publication
-- **System Configuration**: Configure platform settings and eligibility criteria
+In the modern job market, HR teams routinely screen hundreds of applications per role, leading to fatigue, inconsistency, and unconscious bias. **Hire Sphere** standardizes this evaluation process, highlighting skill gaps and surfacing the best-fit candidates faster—all while keeping a human in the loop for final decisions.
 
-### AI-Powered Features
-- **Resume Analysis**: Parse uploaded PDF resumes and provide ATS compatibility scores
-- **Resume Suggestions**: Section-by-section feedback with actionable improvement tips
-- **Resume Scoring**: Match candidate profiles against job requirements
-- **Question Generation**: AI-generated MCQ and coding questions based on topics and difficulty
-- **Test Performance Review**: Personalized analysis of weak areas and study recommendations
+### Core Features
 
-## Tech Stack
+-   **JD Parser**: Automatically extracts key requirements—skills, experience, and qualifications—from Job Descriptions.
+-   **Multi-Format Ingestion**: Accepts PDF/DOCX resumes and LinkedIn profile data (JSON/Scraped).
+-   **Semantic Matching Engine**: Uses LLM reasoning and embeddings to compare candidate profiles against JD requirements.
+-   **Structured Scoring Rubric**: Produces a detailed score across 5 key dimensions with transparent justifications.
+-   **Shortlist Reporting**: Generates ranked tables (PDF/HTML/JSON) with hire/no-hire recommendations.
+-   **Human-in-the-Loop**: Allows HR professionals to override or flag candidate scores with recorded reasons.
+
+---
+
+## 🛠️ Tech Stack
 
 ### Frontend
-- React 18 with Vite
-- React Router for navigation
-- Framer Motion for animations
-- React Hot Toast for notifications
-- Tailwind CSS for styling
-- Axios for API communication
+- **Framework**: [React](https://reactjs.org/) (Vite)
+- **Styling**: [Tailwind CSS](https://tailwindcss.com/)
+- **Animations**: [GSAP](https://greensock.com/gsap/) & [Framer Motion](https://www.framer.com/motion/)
+- **Data Visualization**: [Recharts](https://recharts.org/)
+- **Real-time**: [Socket.io-client](https://socket.io/)
 
 ### Backend
-- Node.js with Express.js
-- MongoDB with Mongoose ODM
-- JWT for authentication
-- Bcrypt for password hashing
-- Multer for file uploads
+- **Runtime**: [Node.js](https://nodejs.org/)
+- **Framework**: [Express](https://expressjs.com/)
+- **Database**: [MongoDB](https://www.mongodb.com/) (Mongoose)
+- **AI Engine**: [Google Gemini API](https://ai.google.dev/) (`@google/generative-ai`)
+- **Storage**: [Cloudinary](https://cloudinary.com/) & [Firebase](https://firebase.google.com/)
+- **Parsing**: [PDF.js](https://mozilla.github.io/pdf.js/)
+- **Real-time**: [Socket.io](https://socket.io/)
 
-### Cloud Services
-- Firebase Storage for resume storage
-- Cloudinary for image uploads
-- Google Gemini AI for AI features
+---
 
-### Real-Time Features
-- Socket.IO for live notifications
-- WebRTC for video interviews
+## 📊 Scoring Rubric
 
-## Installation
+The agent evaluates candidates based on a weighted multi-dimensional rubric:
+
+| Dimension | Weight | 0 - Poor | 5 - Average | 10 - Excellent |
+| :--- | :---: | :--- | :--- | :--- |
+| **Skills Match** | 30% | < 30% skills match | 50–70% skills match | > 85% skills match |
+| **Experience Relevance** | 25% | Unrelated domain | Adjacent domain | Exact domain & seniority |
+| **Education & Certs** | 15% | Does not meet minimum | Meets minimum | Exceeds + extra certs |
+| **Project / Portfolio** | 20% | No evidence | 1–2 generic projects | Strong relevant portfolio |
+| **Communication Quality**| 10% | Poor structure/grammar | Adequate clarity | Crisp, structured, impactful |
+
+*The agent provides dimension-level scores, a weighted total, and a one-line justification per dimension.*
+
+---
+
+## 🚀 Getting Started
 
 ### Prerequisites
-- Node.js 18+
-- MongoDB database
-- Firebase project with Storage enabled
-- Cloudinary account
-- Google Gemini API key
+- Node.js (v18+)
+- MongoDB (Local or Atlas)
+- Google Gemini API Key
+- Cloudinary & Firebase Credentials (for storage)
 
-### Environment Variables
+### Installation
 
-#### Server (.env)
-```
-PORT=5000
-MONGODB_URI=your_mongodb_connection_string
-JWT_SECRET=your_jwt_secret
-CLOUDINARY_CLOUD_NAME=your_cloudinary_name
-CLOUDINARY_API_KEY=your_cloudinary_key
-CLOUDINARY_API_SECRET=your_cloudinary_secret
-FIREBASE_PROJECT_ID=your_firebase_project_id
-FIREBASE_PRIVATE_KEY=your_firebase_private_key
-FIREBASE_CLIENT_EMAIL=your_firebase_client_email
-FIREBASE_STORAGE_BUCKET=your_storage_bucket
-GEMINI_API_KEY=your_gemini_api_key
-```
+1. **Clone the repository**:
+   ```bash
+   git clone <repository-url>
+   cd Hire_Sphere
+   ```
 
-#### Client (.env)
-```
-VITE_API_URL=http://localhost:5000/api
-```
+2. **Setup Backend**:
+   ```bash
+   cd server
+   npm install
+   cp .env.example .env
+   # Edit .env with your credentials
+   npm run dev
+   ```
 
-### Setup
+3. **Setup Frontend**:
+   ```bash
+   cd ../client
+   npm install
+   cp .env.example .env
+   # Edit .env with your credentials
+   npm run dev
+   ```
 
-1. Clone the repository
-```bash
-git clone https://github.com/yourusername/hiresphere.git
-cd hiresphere
-```
+---
 
-2. Install server dependencies
-```bash
-cd server
-npm install
-```
-
-3. Install client dependencies
-```bash
-cd ../client
-npm install
-```
-
-4. Start the development servers
-```bash
-# Terminal 1 - Server
-cd server
-npm run dev
-
-# Terminal 2 - Client
-cd client
-npm run dev
-```
-
-5. Access the application at `http://localhost:5173`
-
-## Project Structure
+## 📂 Project Structure
 
 ```
-hiresphere/
-├── client/                          # React Frontend
-│   ├── public/                      # Static assets
+Hire_Sphere/
+├── client/             # Vite + React Frontend
 │   ├── src/
-│   │   ├── assets/                  # Images and static files
-│   │   ├── components/
-│   │   │   ├── animations/          # Animation components
-│   │   │   │   └── FadeIn.jsx
-│   │   │   ├── common/              # Reusable UI components
-│   │   │   │   ├── Button.jsx
-│   │   │   │   ├── Card.jsx
-│   │   │   │   ├── Dropdown.jsx
-│   │   │   │   ├── FileUpload.jsx
-│   │   │   │   ├── Input.jsx
-│   │   │   │   ├── Loader.jsx
-│   │   │   │   ├── Modal.jsx
-│   │   │   │   ├── Pagination.jsx
-│   │   │   │   ├── SearchBar.jsx
-│   │   │   │   ├── Table.jsx
-│   │   │   │   └── DraggableHiringPipeline.jsx
-│   │   │   ├── interview/           # Interview components
-│   │   │   │   └── VideoRoom.jsx
-│   │   │   ├── layout/              # Layout components
-│   │   │   │   ├── Header.jsx
-│   │   │   │   ├── Sidebar.jsx
-│   │   │   │   └── DashboardLayout.jsx
-│   │   │   └── test/                # Test-related components
-│   │   │       ├── AIQuestionModal.jsx
-│   │   │       ├── CodeEditor.jsx
-│   │   │       ├── MCQQuestion.jsx
-│   │   │       ├── TestReviewModal.jsx
-│   │   │       └── Timer.jsx
-│   │   ├── context/                 # React Context providers
-│   │   │   ├── AuthContext.jsx
-│   │   │   └── ThemeContext.jsx
-│   │   ├── hooks/                   # Custom React hooks
-│   │   │   ├── useAuth.js
-│   │   │   ├── useSocket.js
-│   │   │   └── useDebounce.js
-│   │   ├── pages/
-│   │   │   ├── admin/               # Admin pages
-│   │   │   │   ├── Dashboard.jsx
-│   │   │   │   ├── ManageUsers.jsx
-│   │   │   │   ├── ManageDrives.jsx
-│   │   │   │   ├── Analytics.jsx
-│   │   │   │   ├── Reports.jsx
-│   │   │   │   ├── Settings.jsx
-│   │   │   │   ├── Notifications.jsx
-│   │   │   │   ├── OfferManagement.jsx
-│   │   │   │   └── EligibilityRules.jsx
-│   │   │   ├── auth/                # Authentication pages
-│   │   │   │   ├── Login.jsx
-│   │   │   │   ├── Register.jsx
-│   │   │   │   └── ForgotPassword.jsx
-│   │   │   ├── interview/           # Interview pages
-│   │   │   │   └── InterviewRoom.jsx
-│   │   │   ├── public/              # Public pages
-│   │   │   │   ├── Home.jsx
-│   │   │   │   ├── About.jsx
-│   │   │   │   └── Contact.jsx
-│   │   │   ├── recruiter/           # Recruiter pages
-│   │   │   │   ├── Dashboard.jsx
-│   │   │   │   ├── CompanyProfile.jsx
-│   │   │   │   ├── CreateDrive.jsx
-│   │   │   │   ├── EditDrive.jsx
-│   │   │   │   ├── MyDrives.jsx
-│   │   │   │   ├── DriveDetails.jsx
-│   │   │   │   ├── ViewApplicants.jsx
-│   │   │   │   ├── TestDesigner.jsx
-│   │   │   │   ├── TestResults.jsx
-│   │   │   │   ├── MyTests.jsx
-│   │   │   │   ├── Interviews.jsx
-│   │   │   │   ├── OfferManagement.jsx
-│   │   │   │   └── Notifications.jsx
-│   │   │   └── student/             # Student pages
-│   │   │       ├── Dashboard.jsx
-│   │   │       ├── Profile.jsx
-│   │   │       ├── EditProfile.jsx
-│   │   │       ├── BrowseDrives.jsx
-│   │   │       ├── DriveDetails.jsx
-│   │   │       ├── MyApplications.jsx
-│   │   │       ├── ApplicationStatus.jsx
-│   │   │       ├── MyTests.jsx
-│   │   │       ├── TakeTest.jsx
-│   │   │       ├── TestInstructions.jsx
-│   │   │       ├── TestResult.jsx
-│   │   │       ├── MyInterviews.jsx
-│   │   │       ├── MyOffers.jsx
-│   │   │       ├── ResumeManager.jsx
-│   │   │       └── Notifications.jsx
-│   │   ├── routes/                  # Route configurations
-│   │   │   ├── AppRoutes.jsx
-│   │   │   └── ProtectedRoute.jsx
-│   │   ├── services/                # API service modules
-│   │   │   ├── api.js               # Axios instance
-│   │   │   ├── authService.js
-│   │   │   ├── userService.js
-│   │   │   ├── driveService.js
-│   │   │   ├── applicationService.js
-│   │   │   ├── testService.js
-│   │   │   ├── interviewService.js
-│   │   │   ├── offerService.js
-│   │   │   └── uploadService.js
-│   │   ├── styles/                  # Global styles
-│   │   │   └── index.css
-│   │   ├── utils/                   # Utility functions
-│   │   │   ├── constants.js
-│   │   │   └── helpers.js
-│   │   ├── App.jsx
-│   │   └── index.jsx
-│   ├── package.json
-│   └── vite.config.js
-│
-├── server/                          # Express Backend
+│   │   ├── components/ # Reusable UI components
+│   │   ├── pages/      # Main application pages
+│   │   └── ...
+├── server/             # Node.js + Express Backend
 │   ├── src/
-│   │   ├── config/                  # Configuration files
-│   │   │   ├── db.js                # MongoDB connection
-│   │   │   ├── cloudinary.js        # Cloudinary setup
-│   │   │   ├── firebase.js          # Firebase setup
-│   │   │   └── socket.js            # Socket.IO setup
-│   │   ├── controllers/             # Request handlers
-│   │   │   ├── authController.js
-│   │   │   ├── studentController.js
-│   │   │   ├── recruiterController.js
-│   │   │   ├── adminController.js
-│   │   │   ├── driveController.js
-│   │   │   ├── applicationController.js
-│   │   │   ├── testController.js
-│   │   │   ├── submissionController.js
-│   │   │   ├── interviewController.js
-│   │   │   ├── offerController.js
-│   │   │   ├── notificationController.js
-│   │   │   └── analyticsController.js
-│   │   ├── middleware/              # Custom middleware
-│   │   │   ├── authMiddleware.js
-│   │   │   ├── roleMiddleware.js
-│   │   │   ├── errorMiddleware.js
-│   │   │   ├── uploadMiddleware.js
-│   │   │   ├── rateLimitMiddleware.js
-│   │   │   └── validationMiddleware.js
-│   │   ├── models/                  # Mongoose schemas
-│   │   │   ├── User.js
-│   │   │   ├── Student.js
-│   │   │   ├── Recruiter.js
-│   │   │   ├── Drive.js
-│   │   │   ├── Application.js
-│   │   │   ├── Test.js
-│   │   │   ├── TestSubmission.js
-│   │   │   ├── Question.js
-│   │   │   ├── Interview.js
-│   │   │   ├── Offer.js
-│   │   │   ├── Notification.js
-│   │   │   ├── Document.js
-│   │   │   └── AuditLog.js
-│   │   ├── routes/                  # API routes
-│   │   │   ├── index.js             # Route aggregator
-│   │   │   ├── authRoutes.js
-│   │   │   ├── studentRoutes.js
-│   │   │   ├── recruiterRoutes.js
-│   │   │   ├── adminRoutes.js
-│   │   │   ├── driveRoutes.js
-│   │   │   ├── applicationRoutes.js
-│   │   │   ├── testRoutes.js
-│   │   │   ├── submissionRoutes.js
-│   │   │   ├── interviewRoutes.js
-│   │   │   ├── offerRoutes.js
-│   │   │   ├── notificationRoutes.js
-│   │   │   └── uploadRoutes.js
-│   │   ├── services/                # Business logic services
-│   │   │   ├── aiService.js         # Google Gemini AI
-│   │   │   ├── emailService.js
-│   │   │   ├── eligibilityService.js
-│   │   │   ├── codeExecutionService.js
-│   │   │   ├── notificationService.js
-│   │   │   ├── reportService.js
-│   │   │   └── fileService.js
-│   │   ├── utils/                   # Utility functions
-│   │   │   ├── responseHandler.js
-│   │   │   └── helpers.js
-│   │   ├── validators/              # Input validators
-│   │   │   ├── authValidator.js
-│   │   │   ├── userValidator.js
-│   │   │   └── driveValidator.js
-│   │   ├── jobs/                    # Background jobs
-│   │   │   └── scheduler.js
-│   │   ├── seeds/                   # Database seeders
-│   │   │   └── seedData.js
-│   │   └── app.js                   # Express app setup
-│   ├── server.js                    # Entry point
-│   ├── package.json
-│   └── .env
-│
-├── .gitignore
-└── README.md
+│   │   ├── controllers/# Business logic
+│   │   ├── models/     # Mongoose schemas
+│   │   ├── routes/     # API endpoints
+│   │   └── ...
+│   ├── server.js       # Entry point
+└── logo.png            # Project Branding
 ```
 
-## License
+---
 
-MIT License
+---
 
-## Author
+## 🚀 Sample Output & Dashboard
 
-Developed as a comprehensive solution for campus placement management.
+Experience the power of Hire Sphere's AI-driven analysis. We have prepared a comprehensive sample analysis document showcasing parsed Job Descriptions, candidate scoring, and system metrics.
+
+👉 **[View Detailed Sample Output & System Analysis](./SAMPLE_OUTPUT.md)**
+
+### Quick Preview:
+- **Parsed JDs**: Automatic extraction of skills and experience.
+- **AI Scoring**: Multi-dimensional evaluation (Skills, Experience, Education, etc.).
+- **Ranked Dashboards**: Real-time ranking of top candidates.
+- **API Responses**: Professional JSON outputs for enterprise integration.
+
+---
+
+## 📝 License
+
+Distributed under the MIT License. See `LICENSE` (or `server/package.json`) for more information.
+
+---
+
+<p align="center">Built with ❤️ by the Hire Sphere Team</p>
