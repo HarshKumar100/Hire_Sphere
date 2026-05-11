@@ -1,0 +1,15 @@
+node_modules/
+dist/
+dist-ssr/
+build/
+coverage/
+uploads/
+*.log
+
+.env
+.env.*
+!.env.example
+
+.DS_Store
+Thumbs.db
+

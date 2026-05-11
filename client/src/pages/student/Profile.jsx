@@ -1,0 +1,1393 @@
+import React, { useState, useEffect } from 'react';
+import { motion } from 'framer-motion';
+import {
+  IoCreate,
+  IoDocumentText,
+  IoMail,
+  IoCall,
+  IoLocation,
+  IoSchool,
+  IoDownload,
+  IoSave,
+  IoClose,
+  IoAdd,
+  IoCloudUpload,
+  IoTrash,
+  IoCamera,
+  IoSparkles,
+  IoTime,
+  IoLogoGithub,
+  IoLogoLinkedin,
+  IoRefresh,
+  IoStar,
+  IoGitBranch,
+  IoPeople,
+  IoCode,
+  IoOpenOutline,
+} from 'react-icons/io5';
+import Card from '../../components/common/Card';
+import Button from '../../components/common/Button';
+import Input from '../../components/common/Input';
+import Dropdown from '../../components/common/Dropdown';
+import Loader from '../../components/common/Loader';
+import FadeIn from '../../components/animations/FadeIn';
+import { useAuth } from '../../hooks/useAuth';
+import { userService } from '../../services/userService';
+import { BRANCHES } from '../../utils/constants';
+import toast from 'react-hot-toast';
+import { formatDate } from '../../utils/helpers';
+
+const Profile = () => {
+  const { profile: contextProfile, updateProfile } = useAuth();
+  const [profile, setProfile] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [editing, setEditing] = useState(false);
+  const [saving, setSaving] = useState(false);
+
+  const [formData, setFormData] = useState({
+    firstName: '',
+    lastName: '',
+    studentId: '',
+    email: '',
+    phone: '',
+    dateOfBirth: '',
+    gender: '',
+    address: '',
+    linkedIn: '',
+    github: '',
+    portfolio: '',
+    branch: '',
+    batch: '',
+    currentSemester: '8',
+    cgpa: '',
+    activeBacklogs: '0',
+    totalBacklogs: '0',
+    tenthMarks: '',
+    twelfthMarks: '',
+    skills: [],
+  });
+
+  const [currentSkill, setCurrentSkill] = useState('');
+  const [resumeFile, setResumeFile] = useState(null);
+  const [resumeName, setResumeName] = useState('');
+  const [uploadingResume, setUploadingResume] = useState(false);
+  const [deletingResumeId, setDeletingResumeId] = useState(null);
+  const [uploadingPhoto, setUploadingPhoto] = useState(false);
+
+  // AI Resume Analysis state
+  const [resumeAnalysis, setResumeAnalysis] = useState(null);
+  const [loadingAnalysis, setLoadingAnalysis] = useState(false);
+  const [profileSummary, setProfileSummary] = useState(null);
+  const [loadingProfileSummary, setLoadingProfileSummary] = useState(false);
+
+  // GitHub Agent state
+  const [githubData, setGithubData] = useState(null);
+  const [loadingGithub, setLoadingGithub] = useState(false);
+  const [githubError, setGithubError] = useState(null);
+
+  const currentYear = new Date().getFullYear();
+  const batchOptions = [
+    { value: currentYear, label: `${currentYear}` },
+    { value: currentYear + 1, label: `${currentYear + 1}` },
+    { value: currentYear + 2, label: `${currentYear + 2}` },
+    { value: currentYear + 3, label: `${currentYear + 3}` },
+  ];
+
+  useEffect(() => {
+    fetchProfile();
+  }, []);
+
+  useEffect(() => {
+    if (profile) {
+      fetchProfileSummary();
+      if (profile.github) {
+        fetchGithubData(profile.github);
+      }
+    }
+  }, [profile]);
+
+  const fetchProfile = async () => {
+    try {
+      const response = await userService.getProfile();
+      if (response.success && response.data?.student) {
+        const prof = response.data.student;
+        setProfile(prof);
+        // Populate form data with existing values
+        setFormData({
+          firstName: prof.firstName || '',
+          lastName: prof.lastName || '',
+          studentId: prof.studentId || '',
+          email: prof.email || '',
+          phone: prof.phone || '',
+          dateOfBirth: prof.dateOfBirth ? prof.dateOfBirth.split('T')[0] : '',
+          gender: prof.gender || '',
+          address: typeof prof.address === 'object'
+            ? [prof.address.street, prof.address.city, prof.address.state, prof.address.pincode].filter(Boolean).join(', ')
+            : prof.address || '',
+          linkedIn: prof.linkedIn || '',
+          github: prof.github || '',
+          portfolio: prof.portfolio || '',
+          branch: prof.branch || '',
+          batch: prof.batch || '',
+          currentSemester: prof.currentSemester || '8',
+          cgpa: prof.cgpa || '',
+          activeBacklogs: prof.activeBacklogs ?? '0',
+          totalBacklogs: prof.totalBacklogs ?? '0',
+          tenthMarks: prof.tenthMarks || '',
+          twelfthMarks: prof.twelfthMarks || '',
+          skills: prof.skills || [],
+        });
+      }
+    } catch (error) {
+      // Profile doesn't exist, enable editing mode
+      setEditing(true);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleChange = (e) => {
+    const { name, value } = e.target;
+    setFormData((prev) => ({ ...prev, [name]: value }));
+  };
+
+  const fetchProfileSummary = async () => {
+    setLoadingProfileSummary(true);
+    try {
+      const response = await userService.getProfileSummary();
+      if (response.success) {
+        setProfileSummary(response.data.summary);
+      }
+    } catch (error) {
+      setProfileSummary(null);
+    } finally {
+      setLoadingProfileSummary(false);
+    }
+  };
+
+  // Fetch GitHub profile data via public GitHub REST API
+  const fetchGithubData = async (githubUrl) => {
+    if (!githubUrl) return;
+    setLoadingGithub(true);
+    setGithubError(null);
+    try {
+      // Extract username from URL
+      const match = githubUrl.match(/github\.com\/([\w.-]+)/);
+      if (!match) {
+        setGithubError('Invalid GitHub URL format');
+        return;
+      }
+      const username = match[1];
+
+      // Fetch user profile and repos in parallel
+      const [userRes, reposRes] = await Promise.all([
+        fetch(`https://api.github.com/users/${username}`),
+        fetch(`https://api.github.com/users/${username}/repos?per_page=100&sort=updated`),
+      ]);
+
+      if (!userRes.ok) {
+        setGithubError('GitHub profile not found or API limit reached');
+        return;
+      }
+
+      const user = await userRes.json();
+      const repos = reposRes.ok ? await reposRes.json() : [];
+
+      // Compute stats
+      const totalStars = repos.reduce((sum, r) => sum + (r.stargazers_count || 0), 0);
+      const totalForks = repos.reduce((sum, r) => sum + (r.forks_count || 0), 0);
+      const languages = {};
+      repos.forEach((r) => {
+        if (r.language) languages[r.language] = (languages[r.language] || 0) + 1;
+      });
+      const topLanguages = Object.entries(languages)
+        .sort((a, b) => b[1] - a[1])
+        .slice(0, 5)
+        .map(([lang]) => lang);
+
+      const topRepos = [...repos]
+        .sort((a, b) => (b.stargazers_count || 0) - (a.stargazers_count || 0))
+        .slice(0, 4);
+
+      setGithubData({ user, totalStars, totalForks, topLanguages, topRepos, username });
+    } catch (err) {
+      setGithubError('Failed to fetch GitHub data');
+    } finally {
+      setLoadingGithub(false);
+    }
+  };
+
+  const addSkill = () => {
+    if (currentSkill.trim() && !formData.skills.includes(currentSkill.trim())) {
+      setFormData((prev) => ({
+        ...prev,
+        skills: [...prev.skills, currentSkill.trim()],
+      }));
+      setCurrentSkill('');
+    }
+  };
+
+  const removeSkill = (skill) => {
+    setFormData((prev) => ({
+      ...prev,
+      skills: prev.skills.filter((s) => s !== skill),
+    }));
+  };
+
+  const handleFileChange = (e) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      if (file.size > 5 * 1024 * 1024) {
+        toast.error('File size must be less than 5MB');
+        return;
+      }
+      if (file.type !== 'application/pdf') {
+        toast.error('Only PDF files are allowed');
+        return;
+      }
+      setResumeFile(file);
+      // Auto-populate name from filename if empty
+      if (!resumeName) {
+        const nameWithoutExt = file.name.replace(/\.pdf$/i, '');
+        setResumeName(nameWithoutExt);
+      }
+    }
+  };
+
+  // Upload resume with custom name
+  const handleUploadResume = async () => {
+    if (!resumeFile) {
+      toast.error('Please select a file');
+      return;
+    }
+    if (!resumeName.trim()) {
+      toast.error('Please enter a resume name');
+      return;
+    }
+
+    setUploadingResume(true);
+    try {
+      const formData = new FormData();
+      formData.append('resume', resumeFile);
+      formData.append('title', resumeName.trim());
+
+      const response = await userService.uploadResume(formData);
+      if (response.success) {
+        setProfile(response.data.student);
+        toast.success('Resume uploaded successfully');
+        setResumeFile(null);
+        setResumeName('');
+        // Reset file input
+        const fileInput = document.getElementById('resume-upload-view');
+        if (fileInput) fileInput.value = '';
+      }
+    } catch (error) {
+      toast.error(error.response?.data?.message || 'Failed to upload resume');
+    } finally {
+      setUploadingResume(false);
+    }
+  };
+
+  // Delete resume
+  const handleDeleteResume = async (resumeId) => {
+    if (!window.confirm('Are you sure you want to delete this resume?')) {
+      return;
+    }
+
+    setDeletingResumeId(resumeId);
+    try {
+      const response = await userService.deleteResume(resumeId);
+      if (response.success) {
+        setProfile(response.data.student);
+        toast.success('Resume deleted successfully');
+      }
+    } catch (error) {
+      toast.error(error.response?.data?.message || 'Failed to delete resume');
+    } finally {
+      setDeletingResumeId(null);
+    }
+  };
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+
+    const normalizedPhone = (formData.phone || '').replace(/\D/g, '').slice(-10);
+    if (normalizedPhone.length !== 10) {
+      toast.error('Phone must be a valid 10-digit number');
+      return;
+    }
+
+    if (!formData.dateOfBirth) {
+      toast.error('Date of birth is required');
+      return;
+    }
+
+    if (!formData.gender) {
+      toast.error('Gender is required');
+      return;
+    }
+
+    setSaving(true);
+
+    try {
+      const profileData = {
+        firstName: formData.firstName,
+        lastName: formData.lastName,
+        studentId: formData.studentId,
+        email: formData.email,
+        phone: normalizedPhone,
+        dateOfBirth: formData.dateOfBirth,
+        gender: formData.gender,
+        address: { street: (formData.address || '').trim() },
+        linkedIn: formData.linkedIn.trim(),
+        github: formData.github.trim(),
+        portfolio: formData.portfolio.trim(),
+        branch: formData.branch,
+        batch: parseInt(formData.batch),
+        currentSemester: parseInt(formData.currentSemester) || 8,
+        cgpa: parseFloat(formData.cgpa),
+        activeBacklogs: parseInt(formData.activeBacklogs) || 0,
+        totalBacklogs: parseInt(formData.totalBacklogs) || 0,
+        tenthMarks: parseFloat(formData.tenthMarks),
+        twelfthMarks: parseFloat(formData.twelfthMarks),
+        skills: formData.skills,
+      };
+
+      const response = profile
+        ? await userService.updateProfile(profileData)
+        : await userService.createProfile(profileData);
+
+      if (response.success) {
+        const updatedProfile = response.data.student;
+        updateProfile(updatedProfile);
+        setProfile(updatedProfile);
+
+        if (resumeFile) {
+          try {
+            const resumeFormData = new FormData();
+            resumeFormData.append('resume', resumeFile);
+            resumeFormData.append('title', resumeFile.name);
+            await userService.uploadResume(resumeFormData);
+            toast.success('Resume uploaded successfully');
+            setResumeFile(null);
+          } catch (resumeError) {
+            toast.error('Profile saved but resume upload failed');
+          }
+        }
+
+        toast.success('Profile saved successfully');
+        setEditing(false);
+        fetchProfile(); // Refresh data
+      }
+    } catch (error) {
+      const apiErrors = error.response?.data?.errors;
+      if (Array.isArray(apiErrors) && apiErrors.length > 0) {
+        toast.error(apiErrors[0].message || 'Validation failed');
+      } else {
+        toast.error(error.response?.data?.message || 'Failed to save profile');
+      }
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  // Format address for display
+  const formatAddress = (address) => {
+    if (!address) return 'Not provided';
+    if (typeof address === 'object') {
+      return [address.street, address.city, address.state, address.pincode, address.country]
+        .filter(Boolean)
+        .join(', ');
+    }
+    return address;
+  };
+
+  if (loading) {
+    return <Loader fullScreen />;
+  }
+
+  // No profile - show create profile form
+  if (!profile && !editing) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-[60vh]">
+        <FadeIn>
+          <Card className="text-center max-w-md">
+            <IoDocumentText className="mx-auto text-primary-300 mb-4" size={64} />
+            <h2 className="text-2xl font-bold text-primary-900 mb-2">
+              Complete Your Profile
+            </h2>
+            <p className="text-primary-600 mb-6">
+              Please complete your profile to apply for placement drives
+            </p>
+            <Button icon={<IoCreate />} onClick={() => setEditing(true)}>
+              Create Profile
+            </Button>
+          </Card>
+        </FadeIn>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-6">
+      <FadeIn>
+        <div className="flex justify-between items-center">
+          <div>
+            <h1 className="text-3xl font-bold text-primary-900">My Profile</h1>
+            <p className="text-primary-600 mt-1">
+              {editing ? 'Update your profile information' : 'View and manage your profile'}
+            </p>
+          </div>
+          {!editing ? (
+            <Button icon={<IoCreate />} onClick={() => setEditing(true)}>
+              Edit Profile
+            </Button>
+          ) : (
+            <Button variant="secondary" icon={<IoClose />} onClick={() => {
+              setEditing(false);
+              fetchProfile(); // Reset form
+            }}>
+              Cancel
+            </Button>
+          )}
+        </div>
+      </FadeIn>
+
+      {editing ? (
+        // EDIT MODE
+        <form onSubmit={handleSubmit} className="space-y-6">
+          <FadeIn delay={0.1}>
+            <Card title="Personal Information">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <Input
+                  label="First Name"
+                  name="firstName"
+                  value={formData.firstName}
+                  onChange={handleChange}
+                  required
+                />
+                <Input
+                  label="Last Name"
+                  name="lastName"
+                  value={formData.lastName}
+                  onChange={handleChange}
+                  required
+                />
+                <Input
+                  label="Student ID"
+                  name="studentId"
+                  value={formData.studentId}
+                  onChange={handleChange}
+                  required
+                />
+                <Input
+                  label="Email"
+                  name="email"
+                  type="email"
+                  value={formData.email}
+                  onChange={handleChange}
+                  required
+                />
+                <Input
+                  label="Phone"
+                  name="phone"
+                  type="tel"
+                  value={formData.phone}
+                  onChange={handleChange}
+                  required
+                />
+                <Input
+                  label="Date of Birth"
+                  name="dateOfBirth"
+                  type="date"
+                  value={formData.dateOfBirth}
+                  onChange={handleChange}
+                  required
+                />
+                <Dropdown
+                  label="Gender"
+                  name="gender"
+                  value={formData.gender}
+                  onChange={handleChange}
+                  options={[
+                    { value: 'male', label: 'Male' },
+                    { value: 'female', label: 'Female' },
+                    { value: 'other', label: 'Other' },
+                  ]}
+                  required
+                />
+              </div>
+              <div className="mt-6">
+                <label className="block text-sm font-medium text-primary-700 mb-2">
+                  Address
+                </label>
+                <textarea
+                  name="address"
+                  value={formData.address}
+                  onChange={handleChange}
+                  className="input-field min-h-[80px]"
+                  placeholder="Enter your address..."
+                />
+              </div>
+            </Card>
+          </FadeIn>
+
+          <FadeIn delay={0.2}>
+            <Card title="Academic Details">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <Dropdown
+                  label="Branch"
+                  name="branch"
+                  value={formData.branch}
+                  onChange={handleChange}
+                  options={BRANCHES.map((b) => ({ value: b, label: b }))}
+                  required
+                />
+                <Dropdown
+                  label="Batch"
+                  name="batch"
+                  value={formData.batch}
+                  onChange={handleChange}
+                  options={batchOptions}
+                  required
+                />
+                <Input
+                  label="Current CGPA"
+                  name="cgpa"
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  max="10"
+                  value={formData.cgpa}
+                  onChange={handleChange}
+                  required
+                />
+                <Input
+                  label="Active Backlogs"
+                  name="activeBacklogs"
+                  type="number"
+                  min="0"
+                  value={formData.activeBacklogs}
+                  onChange={handleChange}
+                />
+                <Input
+                  label="10th Marks (%)"
+                  name="tenthMarks"
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  max="100"
+                  value={formData.tenthMarks}
+                  onChange={handleChange}
+                />
+                <Input
+                  label="12th Marks (%)"
+                  name="twelfthMarks"
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  max="100"
+                  value={formData.twelfthMarks}
+                  onChange={handleChange}
+                />
+              </div>
+            </Card>
+          </FadeIn>
+
+          <FadeIn delay={0.25}>
+            <Card title="Professional Links">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <Input
+                  label="LinkedIn Profile"
+                  name="linkedIn"
+                  type="url"
+                  value={formData.linkedIn}
+                  onChange={handleChange}
+                  placeholder="https://www.linkedin.com/in/your-profile"
+                  helperText="Add your public LinkedIn profile link"
+                />
+                <Input
+                  label="GitHub Profile"
+                  name="github"
+                  type="url"
+                  value={formData.github}
+                  onChange={handleChange}
+                  placeholder="https://github.com/your-username"
+                  helperText="Add your GitHub profile link"
+                />
+                <Input
+                  label="Portfolio"
+                  name="portfolio"
+                  type="url"
+                  value={formData.portfolio}
+                  onChange={handleChange}
+                  placeholder="https://your-portfolio.com"
+                  helperText="Optional personal website or portfolio"
+                  className="md:col-span-2"
+                />
+              </div>
+            </Card>
+          </FadeIn>
+
+          {profile && (
+            <FadeIn delay={0.28}>
+              <Card title="Profile Summary">
+                {loadingProfileSummary ? (
+                  <div className="py-4 text-sm text-primary-500">Generating summary from your LinkedIn, GitHub, and portfolio...</div>
+                ) : profileSummary ? (
+                  <div className="space-y-4">
+                    <p className="text-primary-700 leading-7">{profileSummary.summary}</p>
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                      <div className="p-3 rounded-lg bg-primary-50">
+                        <p className="text-xs font-medium text-primary-500 mb-1">LinkedIn Insight</p>
+                        <p className="text-sm text-primary-700">{profileSummary.linkedinInsight}</p>
+                      </div>
+                      <div className="p-3 rounded-lg bg-primary-50">
+                        <p className="text-xs font-medium text-primary-500 mb-1">GitHub Insight</p>
+                        <p className="text-sm text-primary-700">{profileSummary.githubInsight}</p>
+                      </div>
+                      <div className="p-3 rounded-lg bg-primary-50">
+                        <p className="text-xs font-medium text-primary-500 mb-1">Recommendation</p>
+                        <p className="text-sm text-primary-700">{profileSummary.recommendedUse}</p>
+                      </div>
+                    </div>
+                  </div>
+                ) : (
+                  <p className="text-sm text-primary-500">Add your LinkedIn, GitHub, and portfolio links, then save your profile to generate a summary.</p>
+                )}
+              </Card>
+            </FadeIn>
+          )}
+
+          <FadeIn delay={0.3}>
+            <Card title="Skills">
+              <div className="space-y-4">
+                <div className="flex gap-3">
+                  <Input
+                    placeholder="Add a skill (e.g., JavaScript, Python)"
+                    value={currentSkill}
+                    onChange={(e) => setCurrentSkill(e.target.value)}
+                    onKeyPress={(e) => {
+                      if (e.key === 'Enter') {
+                        e.preventDefault();
+                        addSkill();
+                      }
+                    }}
+                  />
+                  <Button type="button" onClick={addSkill} icon={<IoAdd />}>
+                    Add
+                  </Button>
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  {formData.skills.map((skill, index) => (
+                    <span
+                      key={index}
+                      className="inline-flex items-center px-3 py-1 rounded-full text-sm bg-secondary-100 text-secondary-800"
+                    >
+                      {skill}
+                      <button
+                        type="button"
+                        onClick={() => removeSkill(skill)}
+                        className="ml-2 hover:text-secondary-900"
+                      >
+                        <IoClose size={16} />
+                      </button>
+                    </span>
+                  ))}
+                </div>
+              </div>
+            </Card>
+          </FadeIn>
+
+          <FadeIn delay={0.4}>
+            <Card title="Upload Resume">
+              <div className="space-y-4">
+                <input
+                  type="file"
+                  accept=".pdf"
+                  onChange={handleFileChange}
+                  className="hidden"
+                  id="resume-upload"
+                />
+                <label
+                  htmlFor="resume-upload"
+                  className="flex flex-col items-center justify-center border-2 border-dashed border-primary-300 rounded-lg p-8 cursor-pointer hover:border-secondary-500 hover:bg-primary-50 transition-all"
+                >
+                  <IoCloudUpload className="text-primary-400 mb-2" size={48} />
+                  <p className="text-sm text-primary-600 text-center">
+                    {resumeFile ? resumeFile.name : 'Click to upload resume (PDF only, max 5MB)'}
+                  </p>
+                </label>
+              </div>
+            </Card>
+          </FadeIn>
+
+          <FadeIn delay={0.5}>
+            <div className="flex justify-end">
+              <Button type="submit" icon={<IoSave />} loading={saving} disabled={saving}>
+                Save Profile
+              </Button>
+            </div>
+          </FadeIn>
+        </form>
+      ) : (
+        // VIEW MODE
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          <FadeIn delay={0.1}>
+            <Card className="lg:col-span-1">
+              <div className="text-center">
+                {/* Profile Photo with Upload */}
+                <div className="relative inline-block mb-4">
+                  {profile.profilePhoto?.url ? (
+                    <img
+                      src={profile.profilePhoto.url}
+                      alt={`${profile.firstName} ${profile.lastName}`}
+                      className="w-32 h-32 rounded-full object-cover mx-auto border-4 border-secondary-200"
+                    />
+                  ) : (
+                    <div className="w-32 h-32 bg-gradient-to-br from-secondary-500 to-secondary-700 rounded-full mx-auto flex items-center justify-center text-white text-4xl font-bold">
+                      {profile.firstName?.charAt(0)}{profile.lastName?.charAt(0)}
+                    </div>
+                  )}
+                  {/* Upload Photo Button */}
+                  <label
+                    htmlFor="photo-upload"
+                    className="absolute bottom-0 right-0 w-10 h-10 bg-secondary-500 hover:bg-secondary-600 text-white rounded-full flex items-center justify-center cursor-pointer shadow-lg transition-colors"
+                  >
+                    {uploadingPhoto ? (
+                      <span className="animate-spin"><IoTime size={16} /></span>
+                    ) : (
+                      <IoCamera size={20} />
+                    )}
+                  </label>
+                  <input
+                    type="file"
+                    id="photo-upload"
+                    accept="image/*"
+                    className="hidden"
+                    onChange={async (e) => {
+                      const file = e.target.files?.[0];
+                      if (!file) return;
+                      if (file.size > 5 * 1024 * 1024) {
+                        toast.error('Image size must be less than 5MB');
+                        return;
+                      }
+                      if (!file.type.startsWith('image/')) {
+                        toast.error('Only image files are allowed');
+                        return;
+                      }
+                      setUploadingPhoto(true);
+                      try {
+                        const formData = new FormData();
+                        formData.append('photo', file);
+                        const response = await userService.uploadPhoto(formData);
+                        if (response.success) {
+                          setProfile(response.data.student);
+                          toast.success('Photo updated successfully');
+                        }
+                      } catch (error) {
+                        toast.error(error.response?.data?.message || 'Failed to upload photo');
+                      } finally {
+                        setUploadingPhoto(false);
+                        e.target.value = '';
+                      }
+                    }}
+                  />
+                </div>
+                <h2 className="text-2xl font-bold text-primary-900">
+                  {profile.firstName} {profile.lastName}
+                </h2>
+                <p className="text-primary-600 mt-1">{profile.studentId}</p>
+                <p className="text-sm text-primary-500 mt-2">{profile.branch}</p>
+
+                <div className="mt-6 space-y-3">
+                  <div className="flex items-center justify-center text-sm text-primary-700">
+                    <IoMail className="mr-2 text-primary-500" />
+                    {profile.email}
+                  </div>
+                  <div className="flex items-center justify-center text-sm text-primary-700">
+                    <IoCall className="mr-2 text-primary-500" />
+                    {profile.phone}
+                  </div>
+                </div>
+              </div>
+            </Card>
+          </FadeIn>
+
+          <div className="lg:col-span-2 space-y-6">
+            <FadeIn delay={0.2}>
+              <Card title="Academic Information">
+                <div className="grid grid-cols-2 gap-6">
+                  <div>
+                    <p className="text-sm text-primary-600">Branch</p>
+                    <p className="text-lg font-semibold text-primary-900">{profile.branch}</p>
+                  </div>
+                  <div>
+                    <p className="text-sm text-primary-600">Batch</p>
+                    <p className="text-lg font-semibold text-primary-900">{profile.batch}</p>
+                  </div>
+                  <div>
+                    <p className="text-sm text-primary-600">Current CGPA</p>
+                    <p className="text-lg font-semibold text-primary-900">
+                      {profile.cgpa}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-sm text-primary-600">Active Backlogs</p>
+                    <p className="text-lg font-semibold text-primary-900">
+                      {profile.activeBacklogs ?? 0}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-sm text-primary-600">10th Marks</p>
+                    <p className="text-lg font-semibold text-primary-900">
+                      {profile.tenthMarks}%
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-sm text-primary-600">12th Marks</p>
+                    <p className="text-lg font-semibold text-primary-900">
+                      {profile.twelfthMarks}%
+                    </p>
+                  </div>
+                </div>
+              </Card>
+            </FadeIn>
+
+            <FadeIn delay={0.25}>
+              <Card title="Professional Links">
+                <div className="space-y-3">
+                  <div>
+                    <p className="text-sm text-primary-600">LinkedIn</p>
+                    {profile.linkedIn ? (
+                      <a href={profile.linkedIn} target="_blank" rel="noopener noreferrer" className="text-secondary-600 hover:underline break-all">
+                        {profile.linkedIn}
+                      </a>
+                    ) : (
+                      <p className="text-primary-900">Not provided</p>
+                    )}
+                  </div>
+                  <div>
+                    <p className="text-sm text-primary-600">GitHub</p>
+                    {profile.github ? (
+                      <a href={profile.github} target="_blank" rel="noopener noreferrer" className="text-secondary-600 hover:underline break-all">
+                        {profile.github}
+                      </a>
+                    ) : (
+                      <p className="text-primary-900">Not provided</p>
+                    )}
+                  </div>
+                  <div>
+                    <p className="text-sm text-primary-600">Portfolio</p>
+                    {profile.portfolio ? (
+                      <a href={profile.portfolio} target="_blank" rel="noopener noreferrer" className="text-secondary-600 hover:underline break-all">
+                        {profile.portfolio}
+                      </a>
+                    ) : (
+                      <p className="text-primary-900">Not provided</p>
+                    )}
+                  </div>
+                </div>
+              </Card>
+            </FadeIn>
+
+            {/* AI Agent: Profile Summary for Recruiters */}
+            <FadeIn delay={0.28}>
+              <Card>
+                <div className="flex items-center justify-between mb-4">
+                  <div className="flex items-center gap-2">
+                    <div className="w-8 h-8 bg-gradient-to-br from-purple-500 to-indigo-600 rounded-lg flex items-center justify-center">
+                      <IoSparkles className="text-white" size={16} />
+                    </div>
+                    <div>
+                      <h3 className="font-semibold text-primary-900">AI Agent — Profile Insights</h3>
+                      <p className="text-xs text-primary-500">Auto-analysed for recruiters</p>
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => {
+                      fetchProfileSummary();
+                      if (profile.github) fetchGithubData(profile.github);
+                    }}
+                    className="flex items-center gap-1 text-xs text-primary-500 hover:text-secondary-600 transition-colors"
+                  >
+                    <IoRefresh size={14} />
+                    Refresh
+                  </button>
+                </div>
+
+                {/* AI Summary Box */}
+                <div className="p-4 rounded-xl bg-gradient-to-br from-purple-50 to-indigo-50 border border-purple-100 mb-4">
+                  <p className="text-xs font-semibold text-purple-600 mb-2 uppercase tracking-wide">Profile Summary</p>
+                  {loadingProfileSummary ? (
+                    <div className="flex items-center gap-2 text-sm text-primary-500">
+                      <span className="animate-spin"><IoTime size={14} /></span>
+                      AI Agent is searching LinkedIn and analysing profile...
+                    </div>
+                  ) : profileSummary ? (
+                    <div className="space-y-3">
+                      <p className="text-sm text-primary-800 leading-relaxed">{profileSummary.summary}</p>
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-2 mt-3">
+                        <div className="flex items-start gap-2 p-2 bg-white rounded-lg border border-purple-100">
+                          <IoLogoLinkedin className="text-blue-600 mt-0.5 shrink-0" size={16} />
+                          <div>
+                            <p className="text-xs font-medium text-primary-500">LinkedIn</p>
+                            <p className="text-xs text-primary-700">{profileSummary.linkedinInsight}</p>
+                          </div>
+                        </div>
+                        <div className="flex items-start gap-2 p-2 bg-white rounded-lg border border-purple-100">
+                          <IoLogoGithub className="text-gray-800 mt-0.5 shrink-0" size={16} />
+                          <div>
+                            <p className="text-xs font-medium text-primary-500">GitHub</p>
+                            <p className="text-xs text-primary-700">{profileSummary.githubInsight}</p>
+                          </div>
+                        </div>
+                        <div className="flex items-start gap-2 p-2 bg-white rounded-lg border border-purple-100">
+                          <IoPeople className="text-green-600 mt-0.5 shrink-0" size={16} />
+                          <div>
+                            <p className="text-xs font-medium text-primary-500">Recruiter Note</p>
+                            <p className="text-xs text-primary-700">{profileSummary.recommendedUse}</p>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  ) : (
+                    <p className="text-sm text-primary-500">Summary will appear once your profile has LinkedIn, GitHub, or a resume uploaded.</p>
+                  )}
+                </div>
+
+                {/* LinkedIn Profile Detail Card — AI Agent retrieved */}
+                {profileSummary?.linkedinProfile && (
+                  <div className="mb-4">
+                    <div className="flex items-center gap-2 mb-3">
+                      <IoLogoLinkedin size={18} className="text-blue-600" />
+                      <p className="text-sm font-semibold text-primary-900">LinkedIn Profile — AI Retrieved</p>
+                      <span className="ml-auto text-xs text-blue-600 bg-blue-50 px-2 py-0.5 rounded-full font-medium">AI Agent</span>
+                    </div>
+                    <div className="space-y-3 p-4 bg-blue-50 rounded-xl border border-blue-100">
+                      {(profileSummary.linkedinProfile.name || profileSummary.linkedinProfile.headline) && (
+                        <div className="flex items-start justify-between gap-2">
+                          <div>
+                            {profileSummary.linkedinProfile.name && (
+                              <p className="font-semibold text-primary-900">{profileSummary.linkedinProfile.name}</p>
+                            )}
+                            {profileSummary.linkedinProfile.headline && (
+                              <p className="text-sm text-blue-700">{profileSummary.linkedinProfile.headline}</p>
+                            )}
+                            {profileSummary.linkedinProfile.location && (
+                              <p className="text-xs text-primary-500 mt-0.5">📍 {profileSummary.linkedinProfile.location}</p>
+                            )}
+                            {profileSummary.linkedinProfile.connections && (
+                              <p className="text-xs text-primary-500">🔗 {profileSummary.linkedinProfile.connections} connections</p>
+                            )}
+                          </div>
+                          {profile.linkedIn && (
+                            <a href={profile.linkedIn} target="_blank" rel="noopener noreferrer"
+                              className="shrink-0 text-blue-600 hover:text-blue-800 text-xs flex items-center gap-1">
+                              <IoOpenOutline size={14} /> View
+                            </a>
+                          )}
+                        </div>
+                      )}
+                      {profileSummary.linkedinProfile.about && (
+                        <div>
+                          <p className="text-xs font-semibold text-primary-600 mb-1">About</p>
+                          <p className="text-xs text-primary-700 leading-relaxed">{profileSummary.linkedinProfile.about}</p>
+                        </div>
+                      )}
+                      {profileSummary.linkedinProfile.topExperience?.length > 0 && (
+                        <div>
+                          <p className="text-xs font-semibold text-primary-600 mb-1">Experience</p>
+                          <ul className="space-y-1">
+                            {profileSummary.linkedinProfile.topExperience.map((exp, i) => (
+                              <li key={i} className="flex items-start gap-2 text-xs text-primary-700">
+                                <span className="text-blue-500 mt-0.5">▸</span>{exp}
+                              </li>
+                            ))}
+                          </ul>
+                        </div>
+                      )}
+                      {profileSummary.linkedinProfile.education?.length > 0 && (
+                        <div>
+                          <p className="text-xs font-semibold text-primary-600 mb-1">Education</p>
+                          <ul className="space-y-1">
+                            {profileSummary.linkedinProfile.education.map((edu, i) => (
+                              <li key={i} className="flex items-start gap-2 text-xs text-primary-700">
+                                <span className="text-indigo-500 mt-0.5">▸</span>{edu}
+                              </li>
+                            ))}
+                          </ul>
+                        </div>
+                      )}
+                      {profileSummary.linkedinProfile.skills?.length > 0 && (
+                        <div>
+                          <p className="text-xs font-semibold text-primary-600 mb-1">LinkedIn Skills</p>
+                          <div className="flex flex-wrap gap-1">
+                            {profileSummary.linkedinProfile.skills.slice(0, 12).map((skill, i) => (
+                              <span key={i} className="px-2 py-0.5 bg-blue-100 text-blue-800 rounded-full text-xs">{skill}</span>
+                            ))}
+                            {profileSummary.linkedinProfile.skills.length > 12 && (
+                              <span className="text-xs text-primary-500">+{profileSummary.linkedinProfile.skills.length - 12} more</span>
+                            )}
+                          </div>
+                        </div>
+                      )}
+                      {profileSummary.linkedinProfile.certifications?.length > 0 && (
+                        <div>
+                          <p className="text-xs font-semibold text-primary-600 mb-1">Certifications</p>
+                          <ul className="space-y-1">
+                            {profileSummary.linkedinProfile.certifications.map((cert, i) => (
+                              <li key={i} className="text-xs text-primary-700 flex items-center gap-1">
+                                <span className="text-yellow-500">🏅</span> {cert}
+                              </li>
+                            ))}
+                          </ul>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
+
+                {/* Live GitHub Agent Panel */}
+                {profile.github && (
+                  <div>
+                    <div className="flex items-center gap-2 mb-3">
+                      <IoLogoGithub size={18} className="text-gray-800" />
+                      <p className="text-sm font-semibold text-primary-900">Live GitHub Intelligence</p>
+                      <span className="ml-auto text-xs text-green-600 bg-green-50 px-2 py-0.5 rounded-full font-medium">Live API</span>
+                    </div>
+
+                    {loadingGithub ? (
+                      <div className="flex items-center gap-2 text-sm text-primary-500 py-4">
+                        <span className="animate-spin"><IoTime size={14} /></span>
+                        Fetching GitHub data...
+                      </div>
+                    ) : githubError ? (
+                      <div className="text-sm text-red-500 bg-red-50 p-3 rounded-lg">{githubError}</div>
+                    ) : githubData ? (
+                      <div className="space-y-4">
+                        {/* GitHub Profile Header */}
+                        <div className="flex items-center gap-3 p-3 bg-gray-50 rounded-xl border border-gray-200">
+                          {githubData.user.avatar_url && (
+                            <img src={githubData.user.avatar_url} alt={githubData.username} className="w-12 h-12 rounded-full border-2 border-gray-300" />
+                          )}
+                          <div className="flex-1 min-w-0">
+                            <p className="font-semibold text-primary-900">{githubData.user.name || githubData.username}</p>
+                            <p className="text-xs text-primary-500">@{githubData.username}</p>
+                            {githubData.user.bio && (
+                              <p className="text-xs text-primary-600 mt-1 truncate">{githubData.user.bio}</p>
+                            )}
+                          </div>
+                          <a href={profile.github} target="_blank" rel="noopener noreferrer" className="text-primary-400 hover:text-secondary-600">
+                            <IoOpenOutline size={18} />
+                          </a>
+                        </div>
+
+                        {/* Stats Grid */}
+                        <div className="grid grid-cols-4 gap-2">
+                          {[
+                            { icon: IoCode, label: 'Repos', value: githubData.user.public_repos },
+                            { icon: IoStar, label: 'Stars', value: githubData.totalStars },
+                            { icon: IoGitBranch, label: 'Forks', value: githubData.totalForks },
+                            { icon: IoPeople, label: 'Followers', value: githubData.user.followers },
+                          ].map(({ icon: Icon, label, value }) => (
+                            <div key={label} className="text-center p-2 bg-gray-50 rounded-lg border border-gray-200">
+                              <Icon className="mx-auto text-secondary-600 mb-1" size={16} />
+                              <p className="text-lg font-bold text-primary-900">{value ?? '—'}</p>
+                              <p className="text-xs text-primary-500">{label}</p>
+                            </div>
+                          ))}
+                        </div>
+
+                        {/* Top Languages */}
+                        {githubData.topLanguages.length > 0 && (
+                          <div>
+                            <p className="text-xs font-semibold text-primary-600 mb-2">Top Languages</p>
+                            <div className="flex flex-wrap gap-2">
+                              {githubData.topLanguages.map((lang) => (
+                                <span key={lang} className="px-2 py-1 bg-secondary-100 text-secondary-800 rounded-full text-xs font-medium">
+                                  {lang}
+                                </span>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Top Repos */}
+                        {githubData.topRepos.length > 0 && (
+                          <div>
+                            <p className="text-xs font-semibold text-primary-600 mb-2">Top Repositories</p>
+                            <div className="space-y-2">
+                              {githubData.topRepos.map((repo) => (
+                                <a
+                                  key={repo.id}
+                                  href={repo.html_url}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="flex items-center justify-between p-2 bg-gray-50 hover:bg-gray-100 rounded-lg border border-gray-200 transition-colors"
+                                >
+                                  <div className="min-w-0">
+                                    <p className="text-sm font-medium text-primary-900 truncate">{repo.name}</p>
+                                    {repo.description && (
+                                      <p className="text-xs text-primary-500 truncate">{repo.description}</p>
+                                    )}
+                                  </div>
+                                  <div className="flex items-center gap-2 ml-2 shrink-0">
+                                    {repo.language && (
+                                      <span className="text-xs text-primary-500">{repo.language}</span>
+                                    )}
+                                    <span className="flex items-center gap-0.5 text-xs text-yellow-600">
+                                      <IoStar size={12} />
+                                      {repo.stargazers_count}
+                                    </span>
+                                  </div>
+                                </a>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    ) : null}
+                  </div>
+                )}
+
+                {!profile.github && !profile.linkedIn && (
+                  <p className="text-sm text-primary-500 text-center py-4">
+                    Add your LinkedIn and GitHub links and save your profile to enable AI Agent insights.
+                  </p>
+                )}
+              </Card>
+            </FadeIn>
+
+            {/* Resume Management Section - Always visible */}
+            <FadeIn delay={0.5}>
+              <Card title="My Resumes">
+                {/* Upload New Resume */}
+                <div className="mb-6 p-4 border-2 border-dashed border-primary-200 rounded-lg">
+                  <h4 className="font-medium text-primary-900 mb-4">Upload New Resume</h4>
+                  <div className="space-y-4">
+                    <Input
+                      label="Resume Name"
+                      placeholder="e.g., Software Engineer Resume, Data Analyst CV"
+                      value={resumeName}
+                      onChange={(e) => setResumeName(e.target.value)}
+                    />
+                    <div>
+                      <label className="block text-sm font-medium text-primary-700 mb-2">
+                        Resume File (PDF only, max 5MB)
+                      </label>
+                      <input
+                        type="file"
+                        accept=".pdf"
+                        onChange={handleFileChange}
+                        className="hidden"
+                        id="resume-upload-view"
+                      />
+                      <div className="flex items-center gap-4">
+                        <label
+                          htmlFor="resume-upload-view"
+                          className="flex items-center justify-center px-4 py-2 border border-primary-300 rounded-lg cursor-pointer hover:border-secondary-500 hover:bg-primary-50 transition-all"
+                        >
+                          <IoCloudUpload className="text-primary-500 mr-2" size={20} />
+                          <span className="text-sm text-primary-600">
+                            {resumeFile ? resumeFile.name : 'Choose File'}
+                          </span>
+                        </label>
+                        <Button
+                          onClick={handleUploadResume}
+                          icon={<IoAdd />}
+                          loading={uploadingResume}
+                          disabled={uploadingResume || !resumeFile}
+                        >
+                          Upload Resume
+                        </Button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* List of Uploaded Resumes */}
+                {profile.resumes && profile.resumes.length > 0 ? (
+                  <div className="space-y-3">
+                    <h4 className="font-medium text-primary-900 mb-2">Uploaded Resumes ({profile.resumes.length})</h4>
+                    {profile.resumes.map((resume, index) => (
+                      <motion.div
+                        key={resume._id || index}
+                        initial={{ opacity: 0, x: -20 }}
+                        animate={{ opacity: 1, x: 0 }}
+                        transition={{ delay: index * 0.1 }}
+                        className="flex items-center justify-between p-4 bg-primary-50 rounded-lg"
+                      >
+                        <div className="flex items-center space-x-3">
+                          <IoDocumentText className="text-secondary-600" size={24} />
+                          <div>
+                            <p className="font-medium text-primary-900">{resume.title || 'Untitled Resume'}</p>
+                            <p className="text-sm text-primary-600">
+                              Uploaded {formatDate(resume.uploadedAt)}
+                            </p>
+                          </div>
+                        </div>
+                        <div className="flex items-center space-x-2">
+                          <a
+                            href={resume.url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="p-2 text-secondary-600 hover:bg-secondary-100 rounded-lg transition-colors"
+                            title="Download"
+                          >
+                            <IoDownload size={20} />
+                          </a>
+                          <button
+                            onClick={() => handleDeleteResume(resume._id)}
+                            disabled={deletingResumeId === resume._id}
+                            className="p-2 text-red-600 hover:bg-red-100 rounded-lg transition-colors disabled:opacity-50"
+                            title="Delete"
+                          >
+                            {deletingResumeId === resume._id ? (
+                              <span className="animate-spin"><IoTime size={16} /></span>
+                            ) : (
+                              <IoTrash size={20} />
+                            )}
+                          </button>
+                        </div>
+                      </motion.div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="text-center py-8">
+                    <IoDocumentText className="mx-auto text-primary-300 mb-4" size={48} />
+                    <p className="text-primary-600">No resumes uploaded yet</p>
+                    <p className="text-sm text-primary-500 mt-1">Upload your first resume above</p>
+                  </div>
+                )}
+              </Card>
+            </FadeIn>
+
+            {/* AI Resume Suggestions Section */}
+            <FadeIn delay={0.6}>
+              <Card title="AI Resume Suggestions">
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between">
+                    <p className="text-sm text-primary-600">
+                      Get AI-powered feedback on your resume's ATS compatibility and improvement suggestions.
+                    </p>
+                    <Button
+                      icon={<IoSparkles />}
+                      onClick={async () => {
+                        setLoadingAnalysis(true);
+                        setResumeAnalysis(null);
+                        try {
+                          const response = await userService.getResumeAnalysis();
+                          if (response.success) {
+                            setResumeAnalysis(response.data.analysis);
+                          }
+                        } catch (error) {
+                          toast.error(error.response?.data?.message || 'Failed to get analysis');
+                        } finally {
+                          setLoadingAnalysis(false);
+                        }
+                      }}
+                      loading={loadingAnalysis}
+                      disabled={loadingAnalysis}
+                      className="bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white border-0"
+                    >
+                      {resumeAnalysis ? 'Refresh Analysis' : 'Get AI Suggestions'}
+                    </Button>
+                  </div>
+
+                  {loadingAnalysis && (
+                    <div className="text-center py-8 text-primary-500">
+                      Analyzing your profile...
+                    </div>
+                  )}
+
+                  {resumeAnalysis && !loadingAnalysis && (
+                    <div className="space-y-6 mt-4">
+                      {/* ATS Score */}
+                      <div className="flex items-center gap-4 p-4 bg-gradient-to-r from-blue-50 to-purple-50 rounded-xl">
+                        <div className={`text-4xl font-bold ${resumeAnalysis.atsScore >= 70 ? 'text-green-600' :
+                          resumeAnalysis.atsScore >= 50 ? 'text-yellow-600' : 'text-red-600'
+                          }`}>
+                          {resumeAnalysis.atsScore}/100
+                        </div>
+                        <div>
+                          <span className={`px-3 py-1 rounded-full text-sm font-medium ${resumeAnalysis.atsVerdict === 'Good' ? 'bg-green-100 text-green-800' :
+                            resumeAnalysis.atsVerdict === 'Needs Improvement' ? 'bg-yellow-100 text-yellow-800' : 'bg-red-100 text-red-800'
+                            }`}>
+                            {resumeAnalysis.atsVerdict}
+                          </span>
+                          <p className="text-sm text-primary-600 mt-2">{resumeAnalysis.overallFeedback}</p>
+                        </div>
+                      </div>
+
+                      {/* Section Analysis */}
+                      {resumeAnalysis.sectionAnalysis?.length > 0 && (
+                        <div>
+                          <h4 className="font-medium text-primary-900 mb-3">Section Analysis</h4>
+                          <div className="space-y-3">
+                            {resumeAnalysis.sectionAnalysis.map((section, i) => (
+                              <div key={i} className="p-3 bg-primary-50 rounded-lg">
+                                <div className="flex items-center justify-between mb-2">
+                                  <span className="font-medium text-primary-800">{section.section}</span>
+                                  <span className={`text-sm font-bold ${section.score >= 70 ? 'text-green-600' :
+                                    section.score >= 50 ? 'text-yellow-600' : 'text-red-600'
+                                    }`}>{section.score}%</span>
+                                </div>
+                                <p className="text-sm text-primary-600 mb-2">{section.feedback}</p>
+                                {section.suggestions?.length > 0 && (
+                                  <ul className="text-xs text-primary-700 list-disc list-inside">
+                                    {section.suggestions.map((s, j) => <li key={j}>{s}</li>)}
+                                  </ul>
+                                )}
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Suggested Skills */}
+                      {resumeAnalysis.suggestedSkillsToAdd?.length > 0 && (
+                        <div>
+                          <h4 className="font-medium text-primary-900 mb-2">Suggested Skills to Add</h4>
+                          <div className="flex flex-wrap gap-2">
+                            {resumeAnalysis.suggestedSkillsToAdd.map((skill, i) => (
+                              <span key={i} className="px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-sm">
+                                + {skill}
+                              </span>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Quick Wins */}
+                      {resumeAnalysis.quickWins?.length > 0 && (
+                        <div>
+                          <h4 className="font-medium text-accent-700 mb-2">Quick Wins</h4>
+                          <ul className="text-sm text-primary-700 list-disc list-inside space-y-1">
+                            {resumeAnalysis.quickWins.map((win, i) => <li key={i}>{win}</li>)}
+                          </ul>
+                        </div>
+                      )}
+
+                      {/* Advanced Tips */}
+                      {resumeAnalysis.advancedTips?.length > 0 && (
+                        <div>
+                          <h4 className="font-medium text-secondary-700 mb-2">Advanced Tips</h4>
+                          <ul className="text-sm text-primary-700 list-disc list-inside space-y-1">
+                            {resumeAnalysis.advancedTips.map((tip, i) => <li key={i}>{tip}</li>)}
+                          </ul>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              </Card>
+            </FadeIn>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
+
+export default Profile;
